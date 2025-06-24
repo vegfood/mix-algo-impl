@@ -1,0 +1,593 @@
+#!/usr/bin/env python3
+import math
+import time
+
+import numpy as np
+
+
+def cross_product(p1, p2, p3):
+    """计算向量 p1p2 和 p1p3 的叉积"""
+    return (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])
+
+
+def is_intersect(p1, p2, p3, p4):
+    """判断线段 (p1, p2) 和 (p3, p4) 是否相交"""
+    d1 = cross_product(p3, p4, p1)
+    d2 = cross_product(p3, p4, p2)
+    d3 = cross_product(p1, p2, p3)
+    d4 = cross_product(p1, p2, p4)
+
+    # 判断是否相交
+    if d1 * d2 < 0 and d3 * d4 < 0:
+        return True
+    return False
+
+
+def find_intersecting_segments(path1, path2):
+    """寻找路径中所有相交的线段对"""
+    intersections = []  # 用来存储相交的线段对
+    for i in range(len(path1) - 1):
+        for j in range(len(path2) - 1):
+            if is_intersect(path1[i], path1[i + 1], path2[j], path2[j + 1]):
+                intersections.append(((path1[i], path1[i + 1]), (path2[j], path2[j + 1])))
+    return intersections
+
+
+# 示例路径 (x, y) 点
+path1 = [(0, 0), (2, 2), (4, 0)]
+path2 = [(0, 1), (2, 0), (4, 2)]
+
+# 查找路径中所有相交的线段对
+intersecting_segments = find_intersecting_segments(path1, path2)
+
+# 输出相交的线段对
+# for seg1, seg2 in intersecting_segments:
+#     print(f"Line segment {seg1} intersects with {seg2}")
+
+'''debug path collapse'''
+
+
+def distance_point_to_line(p, a, b):
+    """计算点 p 到线段 ab 的最短距离"""
+    px, py = p
+    ax, ay = a
+    bx, by = b
+    ab2 = (bx - ax) ** 2 + (by - ay) ** 2
+    if ab2 == 0:
+        return math.dist(p, a)  # a == b 时，返回 p 到 a 的距离
+    t = max(0, min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / ab2))
+    proj_x = ax + t * (bx - ax)
+    proj_y = ay + t * (by - ay)
+    return math.dist(p, (proj_x, proj_y))
+
+
+def distance_between_segments(p1, p2, p3, p4):
+    """计算两条线段 (p1, p2) 和 (p3, p4) 的最小距离"""
+    return min(distance_point_to_line(p1, p3, p4),
+               distance_point_to_line(p2, p3, p4),
+               distance_point_to_line(p3, p1, p2),
+               distance_point_to_line(p4, p1, p2))
+
+
+def cross_product_segments(p1, p2, p3, p4):
+    """计算两条线段 (p1, p2) 和 (p3, p4) 的叉积"""
+    v1x, v1y = p2[0] - p1[0], p2[1] - p1[1]  # 向量 p1p2
+    v2x, v2y = p4[0] - p3[0], p4[1] - p3[1]  # 向量 p3p4
+
+    # 计算向量叉积
+    return v1x * v2y - v1y * v2x
+
+
+def dot_product_segments(p1, p2, p3, p4):
+    """计算两条线段 (p1, p2) 和 (p3, p4) 的点积"""
+    v1x, v1y = p2[0] - p1[0], p2[1] - p1[1]  # 向量 p1p2
+    v2x, v2y = p4[0] - p3[0], p4[1] - p3[1]  # 向量 p3p4
+
+    # 计算向量点积
+    dot = v1x * v2x + v1y * v2y
+
+    # 计算向量的长度
+    len_v1 = math.sqrt(v1x ** 2 + v1y ** 2)
+    len_v2 = math.sqrt(v2x ** 2 + v2y ** 2)
+
+    # 归一化的点积（单位向量间的点积）
+    return dot / (len_v1 * len_v2)
+
+
+def find_collinear_segments(path1, path2, min_dist=1e-6, min_cross_dot=1e-6):
+    """寻找路径中所有共线的线段对并判断共线类型"""
+    collinear_segments = []
+
+    for i in range(len(path1) - 1):
+        for j in range(len(path2) - 1):
+            p1, p2 = path1[i], path1[i + 1]
+            p3, p4 = path2[j], path2[j + 1]
+
+            # 计算两条线段的最小距离
+            distance = distance_between_segments(p1, p2, p3, p4)
+
+            if distance < min_dist:
+                # 计算两条线段的叉积，判断共线性
+                cross = cross_product_segments(p1, p2, p3, p4)
+                if abs(cross) < min_cross_dot:  # 叉积接近0，共线
+                    # 计算两条线段的点积，判断方向性
+                    dot = dot_product_segments(p1, p2, p3, p4)
+                    if dot > 0.8:  # 同向
+                        collinear_segments.append(((p1, p2), (p3, p4), "同向共线"))
+                    elif dot < -0.8:  # 反向
+                        collinear_segments.append(((p1, p2), (p3, p4), "反向共线"))
+
+    return collinear_segments
+
+
+# 示例路径 (x, y) 点
+# path1 = [(0, 0), (2, 2), (5, -1)]
+# path2 = [(2, 3), (0, 1), (5, 0)]
+# # path1 = [(0, 0), (2, 2), (4, 0)]
+# # path2 = [(0, 2), (2, 0), (4, 2)]
+# path3 = [(0, 0), (2, 2), (4, 2)]
+# check_path_list = [(path2, 2), (path3, 3)]
+# # 查找路径中所有共线的线段对
+# total_collinear_segments = []
+# for path, robot_name in check_path_list:
+#     collinear_segments = find_collinear_segments(path1, path, min_dist=1, min_cross_dot=0.1)
+#     total_collinear_segments.append((collinear_segments, robot_name))
+#
+# if not total_collinear_segments:
+#     # 查找路径中所有相交的线段对
+#     total_intersecting_segments = []
+#     for path, robot_name in check_path_list:
+#         intersecting_segments = find_intersecting_segments(path1, path)
+#         total_intersecting_segments.append((intersecting_segments, robot_name))
+#     if not total_intersecting_segments:
+#         print('无风险冲突')
+#     else:
+#         # 输出相交的线段对
+#         for intersecting_segments, robot_name in total_intersecting_segments:
+#             for seg1, seg2 in intersecting_segments:
+#                 print(f"Line segment {seg1} intersects with {seg2}")
+#
+#             if intersecting_segments:
+#                 '''检查时间纬度上的是否会相遇'''
+#                 print('时间纬度检查开始')
+# else:
+#     # 输出共线的线段及其共线类型
+#     for collinear_segments, robot_name in total_collinear_segments:
+#         print(f"-----{robot_name}---------")
+#         for seg1, seg2, collinear_type in collinear_segments:
+#             print(f"Line segment {seg1} is collinear with {seg2}, Type: {collinear_type}")
+#         if collinear_segments:
+#             '''检查时间纬度上的是否会相遇'''
+#             print('时间纬度检查开始')
+
+'''debug 路径添加时间戳信息'''
+
+
+# 小车到达目标点的时间为当前时间-小车对应路径点的时间+目标路径点的时间,路径格式为path = [(x1, y1, t1), (x2, y2, t2), ...], t1=0
+
+# 如何获得带时间戳信息的小车路径？
+
+def calculate_distance(p1, p2):
+    """计算两个点 (x1, y1) 和 (x2, y2) 之间的欧几里得距离"""
+    return math.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2)
+
+
+def calculate_angle_change(theta1, theta2):
+    """计算两个角度之间的变化量 (弧度)"""
+    return abs(theta2 - theta1)
+
+
+def add_time_to_path(path, v, omega):
+    """
+    根据线速度和角速度，为每个路径点添加时间信息
+    :param path: 路径点的列表，每个点包含 (x, y, theta)
+    :param v: 线速度 (单位: 米/秒)
+    :param omega: 角速度 (单位: 弧度/秒)
+    :return: 包含时间信息的路径列表，每个点格式为 (x, y, theta, t)
+    """
+    time = 0  # 初始时间
+    path_with_time = [(path[0][0], path[0][1], path[0][2], time)]  # 第一个点的时间为0
+
+    # 遍历路径中的每一段
+    for i in range(1, len(path)):
+        x1, y1, theta1 = path[i - 1]
+        x2, y2, theta2 = path[i]
+
+        # 计算路径点之间的平移距离和角度变化
+        distance = calculate_distance((x1, y1), (x2, y2))
+        angle_change = calculate_angle_change(theta1, theta2)
+
+        # 计算平移和旋转所需的时间
+        if v != 0:
+            trans_time = distance / v  # 平移时间
+        else:
+            trans_time = float('inf')  # 如果线速度为0，平移时间无限大
+
+        if omega != 0:
+            rot_time = angle_change / omega  # 旋转时间
+        else:
+            rot_time = 0  # 如果角速度为0，旋转时间为0
+
+        # 当前段的总时间
+        segment_time = trans_time + rot_time
+
+        # 累加总时间
+        time += segment_time
+
+        # 添加当前点的时间信息
+        path_with_time.append((x2, y2, theta2, time))
+
+    return path_with_time
+
+
+# 示例路径，包含 (x, y, theta)
+path = [(0, 0, 0), (2, 2, math.pi / 4), (4, 2, math.pi / 2), (4, 4, math.pi)]
+
+# 设定线速度和角速度
+v = 1.0  # 米/秒
+omega = math.pi / 4  # 弧度/秒
+
+# 计算带有时间信息的路径
+path_with_time = add_time_to_path(path, v, omega)
+
+# # 输出结果
+# for point in path_with_time:
+#     print(f"x: {point[0]:.2f}, y: {point[1]:.2f}, theta: {point[2]:.2f}, time: {point[3]:.2f} 秒")
+
+'''debug 时间维度检查'''
+
+
+def find_collinear_segments_with_timestamp(path1, path2, min_dist=1e-6, min_cross_dot=1e-6):
+    """
+    寻找路径中所有共线的线段对并判断共线类型
+    :param path1, path2: 路径点的列表，每个点包含 (x, y, theta, t)
+    :param min_dist: 最小相距距离 (单位: 米/秒)
+    :param min_cross_dot: 最小叉乘值 (单位：无)
+    :return: 包含时间信息的共线线段集合，每个共线单元的格式为 （(p1, p2), (p3, p4), 共线类型)）
+    """
+    collinear_segments_with_timestamp = []
+
+    for i in range(len(path1) - 1):
+        for j in range(len(path2) - 1):
+            p1, p2 = path1[i], path1[i + 1]
+            p3, p4 = path2[j], path2[j + 1]
+
+            # 计算两条线段的最小距离
+            distance = distance_between_segments(p1[:2], p2[:2], p3[:2], p4[:2])
+
+            if distance < min_dist:
+                # 计算两条线段的叉积，判断共线性
+                cross = cross_product_segments(p1[:2], p2[:2], p3[:2], p4[:2])
+                if abs(cross) < min_cross_dot:  # 叉积接近0，共线
+                    # 计算两条线段的点积，判断方向性
+                    dot = dot_product_segments(p1[:2], p2[:2], p3[:2], p4[:2])
+                    if dot > 0.8:  # 同向
+                        collinear_segments_with_timestamp.append(((p1, p2), (p3, p4), "同向共线"))
+                    elif dot < -0.8:  # 反向
+                        collinear_segments_with_timestamp.append(((p1, p2), (p3, p4), "反向共线"))
+
+    return collinear_segments_with_timestamp
+
+
+def find_intersecting_segments_with_timestamp(path1, path2):
+    """
+    寻找路径中所有相交的线段对
+    :param path1, path2: 路径点的列表，每个点包含 (x, y, theta, t)
+    :return: 包含时间信息的相交线段集合，每个相交单元的格式为 （(p1, p2), (p3, p4))）
+    """
+    intersections_with_t = []  # 用来存储相交的线段对
+    for i in range(len(path1) - 1):
+        for j in range(len(path2) - 1):
+            p1, p2 = path1[i], path1[i + 1]
+            p3, p4 = path2[j], path2[j + 1]
+
+            if is_intersect(p1[:2], p2[:2], p3[:2], p4[:2]):
+                intersections_with_t.append(((p1, p2), (p3, p4), "点相交"))
+    return intersections_with_t
+
+
+def match_robot_position_to_path(robot_id, path, position_weight=0.8, theta_weight=0.2, match_threshold=0.5):
+    """
+    根据机器人当前位置 (x, y, theta)，找到路径中最接近的路径点（同时考虑位置和角度），
+    并返回对应的时间以及匹配的路径点。
+
+    参数:
+    robot_id -- 匹配的机器人ID
+    path -- 机器人的路径，格式为 [(x, y, theta, t), ...]，其中 t 是时间
+    position_weight -- 位置匹配的权重，默认是 0.8
+    theta_weight -- 角度匹配的权重，默认是 0.2
+    match_threshold -- 匹配的阈值，默认是0.5
+    返回:
+    matched_time -- 最匹配路径点的时间
+    """
+    current_x, current_y, current_theta = get_robot_position(robot_id)
+
+    # 初始化最小的综合匹配值、对应的路径点时间和匹配的路径点
+    min_match_value = float('inf')
+    matched_time = 0
+    matched_point = None
+
+    for point in path:
+        path_x, path_y, path_theta, path_time = point
+
+        # 计算当前位置和路径点 (x, y) 之间的欧几里得距离
+        distance = np.sqrt((current_x - path_x) ** 2 + (current_y - path_y) ** 2)
+
+        # 计算角度差异，确保角度差值在 -pi 到 pi 之间
+        theta_diff = abs(current_theta - path_theta)
+        theta_diff = min(theta_diff, 2 * np.pi - theta_diff)  # 角度差值归一化到 [0, pi]
+
+        # 计算综合匹配值（位置距离和角度差的加权和）
+        match_value = position_weight * distance + theta_weight * theta_diff
+
+        # 找到最小的综合匹配值的路径点
+        if match_value < min_match_value:
+            min_match_value = match_value
+            matched_time = path_time
+            matched_point = (path_x, path_y, path_theta)
+
+    # 如果最小匹配值小于阈值，返回匹配成功的时间和路径点，否则返回 None
+    if min_match_value < match_threshold:
+        print(f"Matched Point: {matched_point}")
+        return matched_time
+    else:
+        print("No match found within threshold")
+        return 0
+
+
+def get_robot_position(robot_id):
+    """
+    返回对应ID机器人的当前位置(x, y, theta)
+    :param robot_id:
+    :return: current_position: x, y, theta
+    """
+    return 0, 0, 0
+
+
+def is_close_to_final(waypoint, path, threshold=5):
+    if path:
+        final = path[-1]
+        if calculate_distance(waypoint[:2], final[:2]) < threshold:
+            return True
+    return False
+
+
+def if_encounter(seg1, seg2, candidate_id, conflict_id, candidate_path, conflict_path, conflict_type):
+    # 小车到达目标点的时间为当前时间-小车当前对应路径点的时间+目标路径点的时间,路径格式为path = [(x1, y1, theta, t1),
+    # (x2, y2, theta, t2), ...], t1=0
+    t_candidate = time.time() - match_robot_position_to_path(candidate_id, candidate_path) + (seg1[0][-1] +
+                                                                                              seg1[1][-1]) / 2
+    t_conflict = time.time() - match_robot_position_to_path(conflict_id, conflict_path) + (
+                seg2[0][-1] + seg2[1][-1]) / 2
+
+    candidate_robot_pos = (np.array(seg1[0]) + np.array(seg1[1])) / 2
+    conflict_robot_pos = (np.array(seg2[0]) + np.array(seg2[1])) / 2
+
+    delay_time = 10
+    estimated_error = 10
+    robot_size = 2
+
+    if conflict_type == "反向共线":
+        # 检查时间冲突性
+        if abs(t_candidate - t_conflict) < estimated_error + delay_time:
+            print(
+                f"Line segment {seg1} is conflict({conflict_type}) with {seg2} in time while t_candidate: {t_candidate} and "
+                f"t_conflict: {t_conflict}")
+            return True
+
+    # 检查空间冲突性
+    if t_candidate + delay_time + estimated_error > t_conflict and is_close_to_final(conflict_robot_pos, conflict_path,
+                                                                                     robot_size):
+        # 候选agv比冲突agv晚到，而冲突区域又为冲突agv的终点
+        print(
+            f"Line segment {seg1} is conflict({conflict_type}) with {seg2} in time because robot({conflict_id}) will stop on the way "
+            f"of robot({candidate_id})")
+        return True
+
+    elif t_conflict + delay_time + estimated_error > t_candidate and is_close_to_final(candidate_robot_pos,
+                                                                                       candidate_path, robot_size):
+        # 候选agv比冲突agv早到，而冲突区域又为候选agv的终点
+        print(
+            f"Line segment {seg1} is conflict({conflict_type}) with {seg2} in time because robot({candidate_id}) will stop on the way "
+            f"of robot({conflict_id})")
+        return True
+
+    if conflict_type == "反向共线":
+        # 高风险冲突
+        print(
+            f"Line segment {seg1} is probably conflict({conflict_type}) with {seg2} in time while t_candidate: {t_candidate} and "
+            f"t_conflict: {t_conflict}")
+    else:
+        # 低风险或无风险冲突
+        print(
+            f"Line segment {seg1} is less likely conflict({conflict_type}) with {seg2} in time while t_candidate: {t_candidate} and "
+            f"t_conflict: {t_conflict}")
+
+
+'''可能性1：时间纬度上相遇可能性为0'''
+# 轨迹无共线也不相交
+# 已解决
+'''可能性2：时间纬度上小概率相遇'''
+# 轨迹有共线或相交，但时间上相遇的可能性很低
+
+'''可能性3：时间纬度上大概率或一定相遇'''
+# 轨迹有共线或相交，时间上相遇的可能性很高
+
+print('----------添加时间维度的检查---------')
+# 示例路径 (x, y) 点
+# 路径区间需要小于机器人的实际体积
+# path1 = [(0, 0, 0), (2, 2, math.pi/2), (5, -1, math.pi/4)]
+# path2 = [(2, 3, math.pi), (0, 1, -math.pi/4), (5, 0, math.pi/6)]
+# # path1 = [(0, 0), (2, 2), (4, 0)]
+# # path2 = [(0, 2), (2, 0), (4, 2)]
+# path3 = [(0, 0, -math.pi/5), (2, 2, -math.pi/8), (4, 2, 0)]
+
+import matplotlib.pyplot as plt
+
+
+def generate_smooth_path_with_angle_limit(num_paths, num_points, max_delta_pos=0.05):
+    """
+    随机生成多条平滑路径，限制连续两条线段的夹角不超过 90 度。
+    每条路径包括 (x, y, theta)，其中 theta 是 -π 到 π 之间的随机角度。
+    """
+    all_paths = []
+    start_range = 10
+
+    for _ in range(num_paths):
+        path = []
+        # 初始点
+        x = np.random.uniform(-start_range, start_range)
+        y = np.random.uniform(-start_range, start_range)
+        theta = np.random.uniform(-np.pi, np.pi)  # 随机生成初始角度
+
+        for i in range(num_points):
+            while True:
+                # 随机生成下一个路径点的相对偏移量和角度变化
+                delta_x = np.random.uniform(-max_delta_pos, max_delta_pos)
+                delta_y = np.random.uniform(-max_delta_pos, max_delta_pos)
+                new_x = x + delta_x
+                new_y = y + delta_y
+                new_theta = np.random.uniform(-np.pi, np.pi)  # 随机生成新的角度
+
+                # 如果不是第一个点，计算前一个点与新点的夹角
+                if i > 1:
+                    # 前一个点方向向量
+                    prev_x, prev_y, prev_theta = path[-2]
+                    vec1 = np.array([x - prev_x, y - prev_y])
+                    vec2 = np.array([new_x - x, new_y - y])
+
+                    # 计算两个向量的夹角
+                    dot_product = np.dot(vec1, vec2)
+                    norm1 = np.linalg.norm(vec1)
+                    norm2 = np.linalg.norm(vec2)
+
+                    # 如果任意一个向量长度为零，跳过夹角计算
+                    if norm1 == 0 or norm2 == 0:
+                        continue
+
+                    cos_angle = dot_product / (norm1 * norm2)
+                    angle = np.arccos(np.clip(cos_angle, -1.0, 1.0))
+
+                    # 如果夹角超过 n 度，反转新生成的线段方向
+                    if angle > np.pi / 12:
+                        continue
+                        # 90度情况下，反转新线段的方向
+                        # delta_x = -delta_x
+                        # delta_y = -delta_y
+                        # new_x = x + delta_x
+                        # new_y = y + delta_y
+
+                # 更新点的位置和方向
+                x = new_x
+                y = new_y
+                theta = new_theta
+
+                # 将路径点添加到列表中
+                path.append((x, y, theta))
+                break
+
+        all_paths.append(path)
+
+    return all_paths
+
+
+def plot_multiple_paths(paths):
+    """
+    在图上绘制多条路径。
+    """
+    plt.figure(figsize=(8, 8), dpi=300)
+    colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']  # 颜色选择
+
+    for idx, path in enumerate(paths):
+        x_coords = [p[0] for p in path]
+        y_coords = [p[1] for p in path]
+        color = colors[idx % len(colors)]  # 循环使用颜色
+
+        plt.plot(x_coords, y_coords, marker='o', linestyle='-', color=color, label=f'Path {idx + 1}', markersize=1)
+
+        # 绘制每个点的方向
+        # for x, y, theta in path:
+        #     dx = np.cos(theta) * 0.2  # 方向箭头的长度
+        #     dy = np.sin(theta) * 0.2
+        #     plt.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc=color, ec=color)
+
+    plt.title("Random Generated Multiple Paths with Directions")
+    plt.xlabel("X coordinate")
+    plt.ylabel("Y coordinate")
+    plt.grid(True)
+    plt.legend()
+    plt.axis('equal')
+    plt.show()
+
+
+# 随机生成多条路径并绘制
+num_paths = 3  # 生成3条路径
+num_points = 400  # 每条路径20个点
+random_paths = generate_smooth_path_with_angle_limit(num_paths, num_points)
+
+# 输出随机生成的路径
+print("Generated Paths:")
+for idx, path in enumerate(random_paths):
+    print(f"Path {idx + 1}:")
+    for p in path:
+        print(p)
+    print("\n")
+
+#示例线速度和角速度
+v = 0.7  # 米/秒
+omega = math.pi / 4  # 弧度/秒
+
+path_list = random_paths
+path_list_with_timestamp = []
+for path in path_list:
+    path_with_timestamp = add_time_to_path(path, v, omega)
+    path_list_with_timestamp.append(path_with_timestamp)
+print(path_list_with_timestamp)
+check_path_list = [(path, robot_id) for robot_id, path in enumerate(path_list_with_timestamp[1:], start=2)]
+print(check_path_list)
+candidate_path = path_list_with_timestamp[0]
+candidate_id = 1
+
+# 查找路径中所有共线或者相交的线段对
+for path, robot_id in check_path_list:
+    total_collinear_segments_with_t = []
+    total_intersecting_segments_with_t = []
+    '''共线路径检查'''
+    collinear_segments_with_timestamp = find_collinear_segments_with_timestamp(candidate_path, path, min_dist=1,
+                                                                               min_cross_dot=0.1)
+    total_collinear_segments_with_t.append((collinear_segments_with_timestamp, robot_id))
+    '''交叉路径检查'''
+    intersecting_segments_with_timestamp = find_intersecting_segments_with_timestamp(candidate_path, path)
+    total_intersecting_segments_with_t.append((intersecting_segments_with_timestamp, robot_id))
+
+    if not total_collinear_segments_with_t and not total_intersecting_segments_with_t:
+        print('时间纬度不存在相遇可能')
+
+    else:
+        # 输出共线的线段及其共线类型
+        for collinear_segments, robot_id in total_collinear_segments_with_t:
+            if collinear_segments:
+                '''检查时间纬度上的是否会相遇'''
+                print('共线情况下的时间纬度检查开始')
+                print(f"-----{candidate_id}与{robot_id}的共线冲突---------")
+                for seg1, seg2, conflict_type in collinear_segments:
+                    if if_encounter(seg1, seg2, candidate_id, robot_id, candidate_path, path, conflict_type):
+                        print(f'candidate robot({candidate_id}) will encounter conflict robot({robot_id}) with '
+                              f'Line segment {seg1} and segment {seg2}')
+                        break
+
+        # 输出相交的线段对
+        for intersecting_segments, robot_id in total_intersecting_segments_with_t:
+            if intersecting_segments:
+                '''检查时间纬度上的是否会相遇'''
+                print('相交情况下的时间纬度检查开始')
+                print(f"-----{candidate_id}与{robot_id}的相交冲突---------")
+                for seg1, seg2, conflict_type in intersecting_segments:
+                    if if_encounter(seg1, seg2, candidate_id, robot_id, candidate_path, path, conflict_type):
+                        print(f'candidate robot({candidate_id}) will encounter conflict robot({robot_id}) with '
+                              f'Line segment {seg1} and segment {seg2}')
+                        break
+
+plot_multiple_paths(random_paths)
+
+print(1//2)
