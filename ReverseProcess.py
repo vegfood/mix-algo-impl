@@ -71,10 +71,10 @@ def sample(model,
            sqrt_one_minus_alphas_cumprod,
            posterior_variance,
            batch_size=16,
-           channels=3):
+           channels=3, timesteps=300):
     return p_sample_loop(model,
                          (batch_size, channels, image_size, image_size),
                          betas,
                          sqrt_recip_alphas,
                          sqrt_one_minus_alphas_cumprod,
-                         posterior_variance)
+                         posterior_variance, timesteps)

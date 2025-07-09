@@ -5,8 +5,11 @@ import ForwardProcess as FP
 from torch.optim import Adam
 from torchvision.utils import save_image
 
+epochs = 40 #确定训练轮次；
+timesteps = 600 #确定最大时间步；
+
 # 获得超参数；
-elements = FP.GetElements()
+elements = FP.GetElements(timesteps=timesteps)
 # 其中不同的参数的含义；
 # [betas,# β参数，控制噪声的加入;                            0
 #  alphas,                                                    1
@@ -36,8 +39,8 @@ optimizer = Adam(model.parameters(), lr=1e-3)
 # 确定dataset;
 dataset = Loss.makeDataLoader()
 
-epochs = 40 #确定训练轮次；
-timesteps = 300 #确定最大时间步；
+# epochs = 40 #确定训练轮次；
+# timesteps = 600 #确定最大时间步；
 
 # 定义一个函数num_to_groups，接受两个参数：num（被分组的数）和divisor（每组的大小）;
 def num_to_groups(num, divisor):

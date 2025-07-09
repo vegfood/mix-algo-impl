@@ -23,8 +23,10 @@ model.to(device)
 model.load_state_dict(torch.load('model.pt'))
 model.eval()
 
+# 去噪步数
+timesteps = 600
 # 获得公式计算的相关参数；
-elements = FP.GetElements()
+elements = FP.GetElements(timesteps=timesteps)
 
 samples = RP.sample(model,
                     image_size=image_size,
@@ -33,7 +35,7 @@ samples = RP.sample(model,
                     betas=elements[0],
                     sqrt_recip_alphas=elements[4],
                     sqrt_one_minus_alphas_cumprod=elements[6],
-                    posterior_variance=elements[7])
+                    posterior_variance=elements[7], timesteps=timesteps)
 
 print("shape of samples:",np.shape(samples))
 samples = torch.tensor(samples, dtype=torch.float32)
