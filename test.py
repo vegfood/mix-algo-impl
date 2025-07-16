@@ -24,7 +24,7 @@ model.load_state_dict(torch.load('model.pt'))
 model.eval()
 
 # 去噪步数
-timesteps = 600
+timesteps = 300
 # 获得公式计算的相关参数；
 elements = FP.GetElements(timesteps=timesteps)
 

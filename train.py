@@ -6,7 +6,7 @@ from torch.optim import Adam
 from torchvision.utils import save_image
 
 epochs = 40 #确定训练轮次；
-timesteps = 600 #确定最大时间步；
+timesteps = 300 #确定最大时间步；
 
 # 获得超参数；
 elements = FP.GetElements(timesteps=timesteps)
